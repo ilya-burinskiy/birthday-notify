@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ilya-burinskiy/birthday-notify/internal/configs"
 	"github.com/ilya-burinskiy/birthday-notify/internal/handlers"
+	"github.com/ilya-burinskiy/birthday-notify/internal/middlewares"
 	"github.com/ilya-burinskiy/birthday-notify/internal/services"
 	"github.com/ilya-burinskiy/birthday-notify/internal/storage"
 	"go.uber.org/zap"
@@ -22,13 +23,15 @@ func main() {
 
 	registerSrv := services.NewRegisterService(store)
 	authSrv := services.NewAuthenticateService(store)
+	subscribeSrv := services.NewSubscribeService(store)
 
 	router := chi.NewRouter()
 	configureUserRouter(logger, registerSrv, authSrv, router)
+	configureSubscriptionRouter(logger, subscribeSrv, router)
 
 	server := http.Server{
 		Handler: router,
-		Addr: config.RunAddr,
+		Addr:    config.RunAddr,
 	}
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		panic(err)
@@ -46,6 +49,18 @@ func configureUserRouter(
 		router.Use(middleware.AllowContentType("application/json"))
 		router.Post("/api/users/register", handler.Register(registerSrv))
 		router.Post("/api/users/login", handler.Authenticate(authSrv))
+	})
+}
+
+func configureSubscriptionRouter(
+	logger *zap.Logger,
+	subscribeSrv services.SubscribeService,
+	mainRouter chi.Router) {
+
+	handler := handlers.NewSubscriptionHandler(logger)
+	mainRouter.Group(func(router chi.Router) {
+		router.Use(middlewares.Authenticate)
+		router.Post("/api/users/{id}/subscribe", handler.Subscribe(subscribeSrv))
 	})
 }
 
