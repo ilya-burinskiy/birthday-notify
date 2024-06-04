@@ -5,10 +5,14 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/ilya-burinskiy/birthday-notify/internal/models"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -29,6 +33,27 @@ func NewDBStorage(dsn string) (*DBStorage, error) {
 	return &DBStorage{
 		pool: pool,
 	}, nil
+}
+
+func (db *DBStorage) CreateUser(ctx context.Context, email string, encryptedPassword []byte, birthDate time.Time) (models.User, error) {
+	row := db.pool.QueryRow(
+		ctx,
+		`INSERT INTO "users" ("email", "encrypted_password", "birthdate") VALUES ($1, $2, $3) RETURNING "id"`,
+		email,
+		encryptedPassword,
+		birthDate,
+	)
+	user := models.User{Email: email, EncryptedPassword: encryptedPassword, BirthDate: birthDate}
+	err := row.Scan(&user.ID)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			return user, ErrUserNotUniq{User: user}
+		}
+		return user, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return user, nil
 }
 
 //go:embed db/migrations/*.sql
