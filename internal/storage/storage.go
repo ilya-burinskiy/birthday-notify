@@ -12,6 +12,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/ilya-burinskiy/birthday-notify/internal/models"
 	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -51,6 +52,27 @@ func (db *DBStorage) CreateUser(ctx context.Context, email string, encryptedPass
 			return user, ErrUserNotUniq{User: user}
 		}
 		return user, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return user, nil
+}
+
+func (db *DBStorage) FindUserByEmail(ctx context.Context, email string) (models.User, error) {
+	row := db.pool.QueryRow(
+		ctx,
+		`SELECT "id", "encrypted_password", "birthdate"
+		 FROM "users"
+		 WHERE "email" = $1`,
+		email,
+	)
+	user := models.User{Email: email}
+	err := row.Scan(&user.ID, &user.EncryptedPassword, &user.BirthDate)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return user, ErrUserNotFound{User: user}
+		}
+
+		return user, fmt.Errorf("failed to find user: %w", err)
 	}
 
 	return user, nil
