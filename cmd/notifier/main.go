@@ -21,8 +21,10 @@ func main() {
 	logger := configureLogger("info")
 
 	registerSrv := services.NewRegisterService(store)
+	authSrv := services.NewAuthenticateService(store)
+
 	router := chi.NewRouter()
-	configureUserRouter(logger, registerSrv, router)
+	configureUserRouter(logger, registerSrv, authSrv, router)
 
 	server := http.Server{
 		Handler: router,
@@ -36,12 +38,14 @@ func main() {
 func configureUserRouter(
 	logger *zap.Logger,
 	registerSrv services.RegisterService,
+	authSrv services.AuthenticateService,
 	mainRouter chi.Router) {
 
 	handler := handlers.NewUserHandlers(logger)
 	mainRouter.Group(func(router chi.Router) {
 		router.Use(middleware.AllowContentType("application/json"))
 		router.Post("/api/users/register", handler.Register(registerSrv))
+		router.Post("/api/users/login", handler.Authenticate(authSrv))
 	})
 }
 
