@@ -78,6 +78,23 @@ func (db *DBStorage) FindUserByEmail(ctx context.Context, email string) (models.
 	return user, nil
 }
 
+func (db *DBStorage) CreateSubscription(ctx context.Context, subscribedUserID, subscribingUserID int) (models.Subscription, error) {
+	row := db.pool.QueryRow(
+		ctx,
+		`INSERT INT "subscriptions" ("subscribed_user_id", "subscribing_user_id") VALUES ($1, $2) RETURNING "id"`,
+		subscribedUserID,
+		subscribingUserID,
+	)
+	subscription := models.Subscription{SubscribedUserID: subscribedUserID, SubscribingUserID: subscribingUserID}
+	err := row.Scan(&subscription.ID)
+	if err != nil {
+		// TODO: handle unique violation error, user not exists
+		return subscription, err
+	}
+
+	return subscription, nil
+}
+
 //go:embed db/migrations/*.sql
 var migrationsDir embed.FS
 
