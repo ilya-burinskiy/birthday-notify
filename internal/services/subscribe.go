@@ -26,5 +26,6 @@ func (srv SubscribeService) Subscribe(
 	subscribingUserID int,
 ) (models.Subscription, error) {
 
+	// TODO: handle creation errors (foreign key violation, unique violation)
 	return srv.creator.CreateSubscription(ctx, subscribedUserID, subscribingUserID)
 }
