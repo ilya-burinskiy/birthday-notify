@@ -81,15 +81,27 @@ func (db *DBStorage) FindUserByEmail(ctx context.Context, email string) (models.
 func (db *DBStorage) CreateSubscription(ctx context.Context, subscribedUserID, subscribingUserID int) (models.Subscription, error) {
 	row := db.pool.QueryRow(
 		ctx,
-		`INSERT INT "subscriptions" ("subscribed_user_id", "subscribing_user_id") VALUES ($1, $2) RETURNING "id"`,
+		`INSERT INTO "subscriptions" ("subscribed_user_id", "subscribing_user_id") VALUES ($1, $2) RETURNING "id"`,
 		subscribedUserID,
 		subscribingUserID,
 	)
 	subscription := models.Subscription{SubscribedUserID: subscribedUserID, SubscribingUserID: subscribingUserID}
 	err := row.Scan(&subscription.ID)
 	if err != nil {
-		// TODO: handle unique violation error, user not exists
-		return subscription, err
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) {
+			return subscription, fmt.Errorf("failed to create subscription: %w", err)
+		}
+
+		// TODO: use proper error types instead of fmt.Errof
+		switch pgErr.Code {
+		case pgerrcode.ForeignKeyViolation:
+			return subscription, fmt.Errorf("user with id=%d not found", subscribedUserID)
+		case pgerrcode.UniqueViolation:
+			return subscription, fmt.Errorf("user with id=%d already subscribed to user with id=%d", subscribingUserID, subscribedUserID)
+		default:
+			return subscription, pgErr
+		}
 	}
 
 	return subscription, nil
