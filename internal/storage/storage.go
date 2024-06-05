@@ -133,6 +133,40 @@ func (db *DBStorage) DeleteSubscription(ctx context.Context, subscriptionID int)
 	return nil
 }
 
+func (db *DBStorage) FetchNotificationsForCurrentDate(ctx context.Context) ([]models.Notification, error) {
+	rows, err := db.pool.Query(
+		ctx,
+		`SELECT "subscribing_users"."email" AS "subscribing_user_email",
+		        COALESCE("days_before_notify", 1) AS "days_before_notify",
+				"subscribed_users"."email" AS "subscribed_user_email"
+		 FROM "subscriptions"
+		 INNER JOIN "users" AS "subscribed_users" ON "subscriptions"."subscribed_user_id" = "subscribed_users"."id"
+		 INNER JOIN "users" AS "subscribing_users" ON "subscriptions"."subscribing_user_id" = "subscribing_users"."id"
+		 LEFT JOIN "notify_settings" ON "subscribing_users"."id" = "notify_settings"."user_id"
+		 WHERE EXTRACT(DAY FROM CURRENT_DATE + COALESCE("days_before_notify", 1)) = EXTRACT(DAY FROM "subscribed_users"."birthdate")
+		   AND EXTRACT(MONTH FROM CURRENT_DATE + COALESCE("days_before_notify", 1)) = EXTRACT(MONTH FROM "subscribed_users"."birthdate")`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch notifications: %w", err)
+	}
+
+	result, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (models.Notification, error) {
+		var notification models.Notification
+		err := row.Scan(
+			&notification.SubscribingUserEmail,
+			&notification.DaysBeforeNotify,
+			&notification.SubscribedUserEmail,
+		)
+		return notification, err
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch user secrets: %w", err)
+	}
+
+	return result, nil
+}
+
 //go:embed db/migrations/*.sql
 var migrationsDir embed.FS
 
