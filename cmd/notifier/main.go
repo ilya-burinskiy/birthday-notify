@@ -25,6 +25,9 @@ func main() {
 	authSrv := services.NewAuthenticateService(store)
 	subscribeSrv := services.NewSubscribeService(store)
 	unsubscribeSrv := services.NewUnsubscribeService(store, store)
+	emailSender := services.NewEmailSender(config)
+	notifier := services.NewNotifier(logger, store, emailSender)
+	notifier.Start()
 
 	router := chi.NewRouter()
 	configureUserRouter(logger, registerSrv, authSrv, router)
