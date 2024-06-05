@@ -212,6 +212,32 @@ func (db *DBStorage) UpdateNotificationSetting(ctx context.Context, settingID, d
 	return notifySetting, nil
 }
 
+func (db *DBStorage) FetchUsers(ctx context.Context) ([]models.User, error) {
+	rows, err := db.pool.Query(
+		ctx,
+		`SELECT "id", "email", "birthdate" FROM "users"`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch users: %w", err)
+	}
+
+	result, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (models.User, error) {
+		var user models.User
+		err := row.Scan(
+			&user.ID,
+			&user.Email,
+			&user.BirthDate,
+		)
+		return user, err
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch users: %w", err)
+	}
+
+	return result, nil
+}
+
 //go:embed db/migrations/*.sql
 var migrationsDir embed.FS
 
