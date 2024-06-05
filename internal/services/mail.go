@@ -30,7 +30,7 @@ func NewEmailSender(config configs.Config) EmailSender {
 
 func (sender EmailSender) Send(to string, subject string, body string) error {
 	smtpAddr := sender.host + ":" + sender.port
-	msg := subject + "\n" + body
+	msg := "Subject: " + subject + "\n" + body
 	if err := smtp.SendMail(smtpAddr, sender.auth, sender.userName, []string{to}, []byte(msg)); err != nil {
 		return fmt.Errorf("failed to send email: %w", err)
 	}
