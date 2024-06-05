@@ -26,6 +26,7 @@ func main() {
 	subscribeSrv := services.NewSubscribeService(store)
 	unsubscribeSrv := services.NewUnsubscribeService(store, store)
 	notifySettingCreator := services.NewCreateNotificationSettingService(store)
+	notifySettingUpdator := services.NewUpdateNotificationService(store)
 
 	emailSender := services.NewEmailSender(config)
 	notifier := services.NewNotifier(logger, store, emailSender)
@@ -34,7 +35,7 @@ func main() {
 	router := chi.NewRouter()
 	configureUserRouter(logger, registerSrv, authSrv, router)
 	configureSubscriptionRouter(logger, subscribeSrv, unsubscribeSrv, router)
-	configureNotificationSettingRouter(logger, notifySettingCreator, router)
+	configureNotificationSettingRouter(logger, notifySettingCreator, notifySettingUpdator, router)
 
 	server := http.Server{
 		Handler: router,
@@ -76,12 +77,14 @@ func configureSubscriptionRouter(
 func configureNotificationSettingRouter(
 	logger *zap.Logger,
 	createSrv services.CreateNotificationSettingService,
+	updateSrv services.UpdateNotificationSettingService,
 	mainRouter chi.Router) {
 
 	handler := handlers.NewNotificationSettingHandler(logger)
 	mainRouter.Group(func(router chi.Router) {
 		router.Use(middlewares.Authenticate)
 		router.Post("/api/notify_settings", handler.Create(createSrv))
+		router.Patch("/api/notify_settings/{id}", handler.Update(updateSrv))
 	})
 }
 
