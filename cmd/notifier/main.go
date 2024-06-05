@@ -23,6 +23,7 @@ func main() {
 
 	registerSrv := services.NewRegisterService(store)
 	authSrv := services.NewAuthenticateService(store)
+	fetchUsersSrv := services.NewFetchUsersService(store)
 	subscribeSrv := services.NewSubscribeService(store)
 	unsubscribeSrv := services.NewUnsubscribeService(store, store)
 	notifySettingCreator := services.NewCreateNotificationSettingService(store)
@@ -33,7 +34,7 @@ func main() {
 	notifier.Start()
 
 	router := chi.NewRouter()
-	configureUserRouter(logger, registerSrv, authSrv, router)
+	configureUserRouter(logger, registerSrv, authSrv, fetchUsersSrv, router)
 	configureSubscriptionRouter(logger, subscribeSrv, unsubscribeSrv, router)
 	configureNotificationSettingRouter(logger, notifySettingCreator, notifySettingUpdator, router)
 
@@ -50,6 +51,7 @@ func configureUserRouter(
 	logger *zap.Logger,
 	registerSrv services.RegisterService,
 	authSrv services.AuthenticateService,
+	fetchSrv services.FetchUsersService,
 	mainRouter chi.Router) {
 
 	handler := handlers.NewUserHandlers(logger)
@@ -57,6 +59,7 @@ func configureUserRouter(
 		router.Use(middleware.AllowContentType("application/json"))
 		router.Post("/api/users/register", handler.Register(registerSrv))
 		router.Post("/api/users/login", handler.Authenticate(authSrv))
+		router.Get("/api/users", handler.Get(fetchSrv))
 	})
 }
 
