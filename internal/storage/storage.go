@@ -196,6 +196,22 @@ func (db *DBStorage) CreateNotificationSetting(ctx context.Context, userID, days
 	return notifySetting, nil
 }
 
+func (db *DBStorage) UpdateNotificationSetting(ctx context.Context, settingID, daysBeforeNotify int) (models.NotifySetting, error) {
+	notifySetting := models.NotifySetting{ID: settingID, DaysBeforeNotify: daysBeforeNotify}
+	row := db.pool.QueryRow(
+		ctx,
+		`UPDATE "notify_settings" SET "days_before_notify" = $1 WHERE "id" = $2 RETURNING "user_id"`,
+		daysBeforeNotify,
+		settingID,
+	)
+	err := row.Scan(&notifySetting.UserID)
+	if err != nil {
+		return notifySetting, fmt.Errorf("failed to update notification setting: %w", err)
+	}
+
+	return notifySetting, nil
+}
+
 //go:embed db/migrations/*.sql
 var migrationsDir embed.FS
 
