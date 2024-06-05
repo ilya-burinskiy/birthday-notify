@@ -107,6 +107,24 @@ func (db *DBStorage) CreateSubscription(ctx context.Context, subscribedUserID, s
 	return subscription, nil
 }
 
+func (db *DBStorage) FindSubscription(ctx context.Context, subscribedUserID, subscribingUserID int) (models.Subscription, error) {
+	row := db.pool.QueryRow(
+		ctx,
+		`SELECT "id" FROM "subscriptions" WHERE "subscribed_user_id" = $1 AND "subscribing_user_id" = $2`,
+		subscribedUserID,
+		subscribingUserID,
+	)
+	subscription := models.Subscription{SubscribedUserID: subscribedUserID, SubscribingUserID: subscribingUserID}
+	err := row.Scan(&subscription.ID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return subscription, ErrSubscriptionNotFound{Subscription: subscription}
+		}
+		return subscription, fmt.Errorf("failed to find subscription: %w", err)
+	}
+	return subscription, nil
+}
+
 //go:embed db/migrations/*.sql
 var migrationsDir embed.FS
 

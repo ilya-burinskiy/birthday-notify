@@ -21,3 +21,15 @@ type ErrUserNotFound struct {
 func (err ErrUserNotFound) Error() string {
 	return fmt.Sprintf("user with email \"%s\" not found", err.User.Email)
 }
+
+type ErrSubscriptionNotFound struct {
+	Subscription models.Subscription
+}
+
+func (err ErrSubscriptionNotFound) Error() string {
+	return fmt.Sprintf(
+		"subscription with subscribed_user_id=%d, subscribing_user_id=%d not found",
+		err.Subscription.SubscribedUserID,
+		err.Subscription.SubscribingUserID,
+	)
+}
