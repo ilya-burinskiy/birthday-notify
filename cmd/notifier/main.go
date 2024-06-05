@@ -24,10 +24,11 @@ func main() {
 	registerSrv := services.NewRegisterService(store)
 	authSrv := services.NewAuthenticateService(store)
 	subscribeSrv := services.NewSubscribeService(store)
+	unsubscribeSrv := services.NewUnsubscribeService(store, store)
 
 	router := chi.NewRouter()
 	configureUserRouter(logger, registerSrv, authSrv, router)
-	configureSubscriptionRouter(logger, subscribeSrv, router)
+	configureSubscriptionRouter(logger, subscribeSrv, unsubscribeSrv, router)
 
 	server := http.Server{
 		Handler: router,
@@ -55,12 +56,14 @@ func configureUserRouter(
 func configureSubscriptionRouter(
 	logger *zap.Logger,
 	subscribeSrv services.SubscribeService,
+	unsubscribeSrv services.UnsubscribeService,
 	mainRouter chi.Router) {
 
 	handler := handlers.NewSubscriptionHandler(logger)
 	mainRouter.Group(func(router chi.Router) {
 		router.Use(middlewares.Authenticate)
 		router.Post("/api/users/{id}/subscribe", handler.Subscribe(subscribeSrv))
+		router.Delete("/api/users/{id}/unsubscribe", handler.Unsubscribe(unsubscribeSrv))
 	})
 }
 
