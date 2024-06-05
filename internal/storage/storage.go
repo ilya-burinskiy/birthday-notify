@@ -125,6 +125,14 @@ func (db *DBStorage) FindSubscription(ctx context.Context, subscribedUserID, sub
 	return subscription, nil
 }
 
+func (db *DBStorage) DeleteSubscription(ctx context.Context, subscriptionID int) error {
+	_, err := db.pool.Exec(ctx, `DELETE FROM "subscriptions" WHERE "id" = $1`, subscriptionID)
+	if err != nil {
+		return fmt.Errorf("failed to delete subscription with id=%d: %w", subscriptionID, err)
+	}
+	return nil
+}
+
 //go:embed db/migrations/*.sql
 var migrationsDir embed.FS
 
