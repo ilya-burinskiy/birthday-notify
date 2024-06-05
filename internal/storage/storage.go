@@ -167,6 +167,35 @@ func (db *DBStorage) FetchNotificationsForCurrentDate(ctx context.Context) ([]mo
 	return result, nil
 }
 
+func (db *DBStorage) CreateNotificationSetting(ctx context.Context, userID, daysBeforeNotify int) (models.NotifySetting, error) {
+	row := db.pool.QueryRow(
+		ctx,
+		`INSERT INTO "notify_settings"("user_id", "days_before_notify") VALUES ($1, $2) RETURNING "id"`,
+		userID,
+		daysBeforeNotify,
+	)
+	notifySetting := models.NotifySetting{UserID: userID, DaysBeforeNotify: daysBeforeNotify}
+	err := row.Scan(&notifySetting.ID)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) {
+			return notifySetting, fmt.Errorf("failed to create notify setting: %w", err)
+		}
+
+		// TODO: use proper error types instead of fmt.Errorf
+		switch pgErr.Code {
+		case pgerrcode.ForeignKeyViolation:
+			return notifySetting, fmt.Errorf("user with id=%d does not exists", userID)
+		case pgerrcode.UniqueViolation:
+			return notifySetting, fmt.Errorf("user with id=%d already has notify setting", userID)
+		default:
+			return notifySetting, nil
+		}
+	}
+
+	return notifySetting, nil
+}
+
 //go:embed db/migrations/*.sql
 var migrationsDir embed.FS
 
