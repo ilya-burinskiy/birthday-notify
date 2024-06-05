@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ilya-burinskiy/birthday-notify/internal/auth"
+	"github.com/ilya-burinskiy/birthday-notify/internal/models"
 	"github.com/ilya-burinskiy/birthday-notify/internal/storage"
 	"go.uber.org/zap"
 )
@@ -18,6 +19,10 @@ type RegisterService interface {
 
 type AuthenticateService interface {
 	Authenticate(ctx context.Context, email, password string) (string, error)
+}
+
+type FetchUsersService interface {
+	FetchUsers(ctx context.Context) ([]models.User, error)
 }
 
 type UserHandler struct {
@@ -104,5 +109,23 @@ func (h UserHandler) Authenticate(authService AuthenticateService) func(http.Res
 
 		auth.SetJWTCookie(w, jwtStr)
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (h UserHandler) Get(fetchSrv FetchUsersService) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r * http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		encoder := json.NewEncoder(w)
+		users, err := fetchSrv.FetchUsers(context.Background())
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			h.logger.Info("failed to fetch users", zap.Error(err))
+			return
+		}
+		if err := encoder.Encode(users); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			h.logger.Info("failed to encode response", zap.Error(err))
+			return
+		}
 	}
 }
